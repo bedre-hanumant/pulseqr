@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PulseQR – Dynamic QR Code &amp; Scan Analytics Platform</title>
+    <meta
+      name="description"
+      content="Create unlimited dynamic QR codes across 18 formats, edit destinations anytime without reprinting, brand with custom logos, and track real-time scan analytics."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PulseQR" />
+    <meta property="og:title" content="PulseQR – Dynamic QR Code &amp; Scan Analytics Platform" />
+    <meta
+      property="og:description"
+      content="Create unlimited dynamic QR codes across 18 formats, edit destinations anytime without reprinting, brand with custom logos, and track real-time scan analytics."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PulseQR – Dynamic QR Code &amp; Scan Analytics Platform" />
+    <meta
+      name="twitter:description"
+      content="Create unlimited dynamic QR codes across 18 formats, edit destinations anytime without reprinting, and track live scan analytics."
+    />
+    <meta name="theme-color" content="#060813" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PulseQR" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "PulseQR",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "All",
+        "description": "Dynamic QR code management and real-time scan analytics SaaS platform supporting 18 QR code types, custom branding, bulk generation, and instant destination updates.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    </script>
+    <script>
+      (function () {
+        try {
+          const saved = localStorage.getItem('pulseqr_theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#F5F7FC] text-slate-900 dark:bg-[#050711] dark:text-slate-100 antialiased selection:bg-violet-500/25 selection:text-violet-900 dark:selection:text-cyan-200 overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

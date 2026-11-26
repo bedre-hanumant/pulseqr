@@ -1,0 +1,584 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account profile and subscription metadata.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID matching the document ID."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Full display name of the account holder."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254,
+          "description": "User email address (PII)."
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 50000,
+          "description": "Profile avatar URL or compressed thumbnail data URI."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin"],
+          "description": "Account role; cannot be self-escalated."
+        },
+        "plan": {
+          "type": "string",
+          "enum": ["free", "pro", "enterprise"],
+          "description": "Active workspace plan tier."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "suspended"],
+          "description": "Account standing."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Immutable server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest profile update."
+        }
+      },
+      "required": ["uid", "name", "email", "photoURL", "role", "plan", "status", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted server-verified administrator registry entry.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "QRCode": {
+      "title": "QRCode",
+      "description": "Dynamic QR code or NFC/QR print card record supporting real-time unlimited destination updates, batch printing, styling, expiry, and scan counting.",
+      "type": "object",
+      "properties": {
+        "qrId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique QR identifier matching document ID."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Immutable UID of the QR code owner."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Human-readable campaign or card label."
+        },
+        "shortSlug": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Short URL slug for compact sharing."
+        },
+        "originalLink": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2048,
+          "description": "Initial destination URL or formatted QR payload set at creation (may be empty for pre-printed cards)."
+        },
+        "currentLink": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2048,
+          "description": "Active destination URL or payload served on redirect."
+        },
+        "currentUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2048,
+          "description": "Synchronized active destination URL for dynamic card routing."
+        },
+        "cardNumber": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "description": "Optional sequential card number or serial identifier for bulk-printed NFC/QR cards."
+        },
+        "batchId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 64,
+          "pattern": "^(|[a-zA-Z0-9_\\-]+)$",
+          "description": "Optional print batch identifier grouping bulk-printed cards."
+        },
+        "batchName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120,
+          "description": "Optional human-readable batch name displayed on Quick QR Edit."
+        },
+        "qrImage": {
+          "type": "string",
+          "maxLength": 2048,
+          "description": "Optional hosted image URL for the generated QR asset."
+        },
+        "qrType": {
+          "type": "string",
+          "enum": [
+            "website",
+            "google_review",
+            "whatsapp",
+            "phone",
+            "sms",
+            "email",
+            "wifi",
+            "google_maps",
+            "upi",
+            "instagram",
+            "facebook",
+            "youtube",
+            "pdf",
+            "image",
+            "video",
+            "vcard",
+            "event",
+            "google_form"
+          ],
+          "description": "Category of the QR payload."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Immutable server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last edit or scan."
+        },
+        "scanCount": {
+          "type": "integer",
+          "description": "Total cumulative redirects recorded."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "paused", "archived"],
+          "description": "Operational state; archived is terminal for non-admins."
+        },
+        "customColor": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 9,
+          "pattern": "^#[0-9a-fA-F]{3,8}$",
+          "description": "Foreground hex color for QR modules."
+        },
+        "bgColor": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 9,
+          "pattern": "^#[0-9a-fA-F]{3,8}$",
+          "description": "Background hex color for QR canvas."
+        },
+        "logo": {
+          "type": "string",
+          "maxLength": 50000,
+          "description": "Optional Storage URL or compact data URI for embedded center logo."
+        },
+        "expiryDate": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Optional ISO expiration date string or empty string."
+        }
+      },
+      "required": [
+        "qrId",
+        "owner",
+        "title",
+        "shortSlug",
+        "originalLink",
+        "currentLink",
+        "qrImage",
+        "qrType",
+        "createdAt",
+        "updatedAt",
+        "scanCount",
+        "status",
+        "customColor",
+        "bgColor",
+        "logo",
+        "expiryDate"
+      ]
+    },
+    "PrintBatch": {
+      "title": "PrintBatch",
+      "description": "Bulk NFC/QR print card batch metadata storing layout geometry, template reference, and card count for reprinting and management.",
+      "type": "object",
+      "properties": {
+        "batchId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "batchName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "cardCount": {
+          "type": "integer"
+        },
+        "startCardNumber": {
+          "type": "integer"
+        },
+        "paperSize": {
+          "type": "string",
+          "enum": ["A4", "A5", "Letter", "Custom"]
+        },
+        "paperWidthMm": {
+          "type": "number"
+        },
+        "paperHeightMm": {
+          "type": "number"
+        },
+        "cardWidthMm": {
+          "type": "number"
+        },
+        "cardHeightMm": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "integer"
+        },
+        "cols": {
+          "type": "integer"
+        },
+        "qrXPercent": {
+          "type": "number"
+        },
+        "qrYPercent": {
+          "type": "number"
+        },
+        "qrSizePercent": {
+          "type": "number"
+        },
+        "templateUrl": {
+          "type": "string",
+          "maxLength": 500000
+        },
+        "defaultUrl": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "qrColor": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 9,
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "qrBgColor": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 9,
+          "pattern": "^#[0-9a-fA-F]{3,8}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "batchId",
+        "owner",
+        "batchName",
+        "cardCount",
+        "startCardNumber",
+        "paperSize",
+        "paperWidthMm",
+        "paperHeightMm",
+        "cardWidthMm",
+        "cardHeightMm",
+        "rows",
+        "cols",
+        "qrXPercent",
+        "qrYPercent",
+        "qrSizePercent",
+        "templateUrl",
+        "defaultUrl",
+        "qrColor",
+        "qrBgColor",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ScanEvent": {
+      "title": "ScanEvent",
+      "description": "Immutable telemetry record created atomically during QR redirect.",
+      "type": "object",
+      "properties": {
+        "scanId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "qrId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "qrOwner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "qrTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "qrType": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "deviceType": {
+          "type": "string",
+          "enum": ["Mobile", "Desktop", "Tablet"]
+        },
+        "browser": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "os": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "country": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "referrer": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "scanId",
+        "qrId",
+        "qrOwner",
+        "qrTitle",
+        "qrType",
+        "deviceType",
+        "browser",
+        "os",
+        "country",
+        "city",
+        "referrer",
+        "timestamp"
+      ]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Support or enterprise inquiry submitted via the Contact page.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "message": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 2000
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "reviewed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["messageId", "name", "email", "subject", "message", "userId", "status", "createdAt"]
+    },
+    "QREditToken": {
+      "title": "QREditToken",
+      "description": "Owner-isolated cryptographic edit token enabling Quick QR Edit without exposing secrets on public QR documents.",
+      "type": "object",
+      "properties": {
+        "qrId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "token": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["qrId", "owner", "token", "createdAt", "updatedAt"]
+    },
+    "QRTokenGrant": {
+      "title": "QRTokenGrant",
+      "description": "Write-only atomic proof document verified synchronously by Firestore Rules during token-authenticated Quick QR Edit updates.",
+      "type": "object",
+      "properties": {
+        "qrId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "submittedToken": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["qrId", "submittedToken", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/UserProfile" },
+      "description": "Owner- and admin-only user account records with PII isolation."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/backend/entities/AdminRecord" },
+      "description": "Trusted administrator lookup documents."
+    },
+    "/qrcodes/{qrId}": {
+      "schema": { "$ref": "#/backend/entities/QRCode" },
+      "description": "Dynamic QR code and bulk-printed NFC/QR card registry supporting O(1) public single-doc resolution, batch filtering, and indexed pagination."
+    },
+    "/qr_edit_tokens/{qrId}": {
+      "schema": { "$ref": "#/backend/entities/QREditToken" },
+      "description": "Owner- and admin-only secret edit tokens for Quick QR Edit."
+    },
+    "/qr_token_grants/{qrId}": {
+      "schema": { "$ref": "#/backend/entities/QRTokenGrant" },
+      "description": "Strictly write-only atomic proof collection used to authorize token-based destination URL updates."
+    },
+    "/print_batches/{batchId}": {
+      "schema": { "$ref": "#/backend/entities/PrintBatch" },
+      "description": "Bulk print card batches with layout geometry and reprint metadata, isolated per owner or globally accessible to admins."
+    },
+    "/scans/{scanId}": {
+      "schema": { "$ref": "#/backend/entities/ScanEvent" },
+      "description": "Immutable scan analytics log atomically synced with qrcodes.scanCount."
+    },
+    "/contact_messages/{messageId}": {
+      "schema": { "$ref": "#/backend/entities/ContactMessage" },
+      "description": "Support inquiries readable only by administrators."
+    }
+  }
+}

@@ -1,0 +1,508 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Global Safety Net (Default Deny)
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Hardened Global Primitives
+    // -------------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidQrId(id) {
+      return id is string && id.size() >= 3 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidEditToken(tok) {
+      return tok is string && tok.size() >= 16 && tok.size() <= 128 && tok.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidHexColor(c) {
+      return c is string && c.size() >= 4 && c.size() <= 9 && c.matches('^#[0-9a-fA-F]{3,8}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'bedrehanumant8@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints (Synchronized with firebase-blueprint.json)
+    // -------------------------------------------------------------------------
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'name', 'email', 'photoURL', 'role', 'plan', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'name', 'email', 'photoURL', 'role', 'plan', 'status', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.photoURL is string && data.photoURL.size() <= 50000
+        && data.role in ['user', 'admin']
+        && data.plan in ['free', 'pro', 'enterprise']
+        && data.status in ['active', 'suspended']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.createdAt is timestamp;
+    }
+
+    function isValidQrType(t) {
+      return t in [
+        'website', 'google_review', 'whatsapp', 'phone', 'sms', 'email',
+        'wifi', 'google_maps', 'upi', 'instagram', 'facebook', 'youtube',
+        'pdf', 'image', 'video', 'vcard', 'event', 'google_form'
+      ];
+    }
+
+    function isValidQRCode(data, qrId) {
+      return data.keys().hasAll([
+          'qrId', 'owner', 'title', 'shortSlug', 'originalLink', 'currentLink',
+          'qrImage', 'qrType', 'createdAt', 'updatedAt', 'scanCount', 'status',
+          'customColor', 'bgColor', 'logo', 'expiryDate'
+        ])
+        && data.keys().hasOnly([
+          'qrId', 'owner', 'title', 'shortSlug', 'originalLink', 'currentLink',
+          'currentUrl', 'cardNumber', 'batchId', 'batchName',
+          'qrImage', 'qrType', 'createdAt', 'updatedAt', 'scanCount', 'status',
+          'customColor', 'bgColor', 'logo', 'expiryDate'
+        ])
+        && isValidQrId(data.qrId)
+        && data.qrId == qrId
+        && isValidId(data.owner)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && isValidQrId(data.shortSlug)
+        && data.originalLink is string && data.originalLink.size() <= 2048
+        && data.currentLink is string && data.currentLink.size() <= 2048
+        && (!('currentUrl' in data) || (data.currentUrl is string && data.currentUrl.size() <= 2048))
+        && (!('cardNumber' in data) || (data.cardNumber is string && data.cardNumber.size() <= 64))
+        && (!('batchId' in data) || (data.batchId is string && data.batchId.size() <= 64 && data.batchId.matches('^(|[a-zA-Z0-9_\\-]+)$')))
+        && (!('batchName' in data) || (data.batchName is string && data.batchName.size() <= 120))
+        && data.qrImage is string && data.qrImage.size() <= 2048
+        && isValidQrType(data.qrType)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.scanCount is int && data.scanCount >= 0
+        && data.status in ['active', 'paused', 'archived']
+        && isValidHexColor(data.customColor)
+        && isValidHexColor(data.bgColor)
+        && data.logo is string && data.logo.size() <= 50000
+        && data.expiryDate is string && data.expiryDate.size() <= 40;
+    }
+
+    function isValidQREditToken(data, qrId) {
+      return data.keys().hasAll(['qrId', 'owner', 'token', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['qrId', 'owner', 'token', 'createdAt', 'updatedAt'])
+        && isValidQrId(data.qrId)
+        && data.qrId == qrId
+        && isValidId(data.owner)
+        && isValidEditToken(data.token)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQRTokenGrant(data, qrId) {
+      return data.keys().hasAll(['qrId', 'submittedToken', 'updatedAt'])
+        && data.keys().hasOnly(['qrId', 'submittedToken', 'updatedAt'])
+        && isValidQrId(data.qrId)
+        && data.qrId == qrId
+        && isValidEditToken(data.submittedToken)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPrintBatch(data, batchId) {
+      return data.keys().hasAll([
+          'batchId', 'owner', 'batchName', 'cardCount', 'startCardNumber',
+          'paperSize', 'paperWidthMm', 'paperHeightMm', 'cardWidthMm', 'cardHeightMm',
+          'rows', 'cols', 'qrXPercent', 'qrYPercent', 'qrSizePercent',
+          'templateUrl', 'defaultUrl', 'qrColor', 'qrBgColor', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'batchId', 'owner', 'batchName', 'cardCount', 'startCardNumber',
+          'paperSize', 'paperWidthMm', 'paperHeightMm', 'cardWidthMm', 'cardHeightMm',
+          'rows', 'cols', 'qrXPercent', 'qrYPercent', 'qrSizePercent',
+          'templateUrl', 'defaultUrl', 'qrColor', 'qrBgColor', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidQrId(data.batchId)
+        && data.batchId == batchId
+        && isValidId(data.owner)
+        && data.batchName is string && data.batchName.size() >= 1 && data.batchName.size() <= 120
+        && data.cardCount is int && data.cardCount >= 1 && data.cardCount <= 10000
+        && data.startCardNumber is int && data.startCardNumber >= 1 && data.startCardNumber <= 10000000
+        && data.paperSize in ['A4', 'A5', 'Letter', 'Custom']
+        && data.paperWidthMm is number && data.paperWidthMm > 0 && data.paperWidthMm <= 2000
+        && data.paperHeightMm is number && data.paperHeightMm > 0 && data.paperHeightMm <= 2000
+        && data.cardWidthMm is number && data.cardWidthMm > 0 && data.cardWidthMm <= 1000
+        && data.cardHeightMm is number && data.cardHeightMm > 0 && data.cardHeightMm <= 1000
+        && data.rows is int && data.rows >= 1 && data.rows <= 50
+        && data.cols is int && data.cols >= 1 && data.cols <= 50
+        && data.qrXPercent is number && data.qrXPercent >= 0 && data.qrXPercent <= 100
+        && data.qrYPercent is number && data.qrYPercent >= 0 && data.qrYPercent <= 100
+        && data.qrSizePercent is number && data.qrSizePercent >= 5 && data.qrSizePercent <= 100
+        && data.templateUrl is string && data.templateUrl.size() <= 500000
+        && data.defaultUrl is string && data.defaultUrl.size() <= 2048
+        && isValidHexColor(data.qrColor)
+        && isValidHexColor(data.qrBgColor)
+        && data.status in ['active', 'archived']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidScanEvent(data, scanId) {
+      return data.keys().hasAll([
+          'scanId', 'qrId', 'qrOwner', 'qrTitle', 'qrType',
+          'deviceType', 'browser', 'os', 'country', 'city', 'referrer', 'timestamp'
+        ])
+        && data.keys().hasOnly([
+          'scanId', 'qrId', 'qrOwner', 'qrTitle', 'qrType',
+          'deviceType', 'browser', 'os', 'country', 'city', 'referrer', 'timestamp'
+        ])
+        && isValidId(data.scanId)
+        && data.scanId == scanId
+        && isValidQrId(data.qrId)
+        && isValidId(data.qrOwner)
+        && data.qrTitle is string && data.qrTitle.size() >= 1 && data.qrTitle.size() <= 120
+        && data.qrType is string && data.qrType.size() >= 1 && data.qrType.size() <= 32
+        && data.deviceType in ['Mobile', 'Desktop', 'Tablet']
+        && data.browser is string && data.browser.size() >= 1 && data.browser.size() <= 40
+        && data.os is string && data.os.size() >= 1 && data.os.size() <= 40
+        && data.country is string && data.country.size() >= 1 && data.country.size() <= 64
+        && data.city is string && data.city.size() >= 1 && data.city.size() <= 64
+        && data.referrer is string && data.referrer.size() <= 256
+        && data.timestamp is timestamp;
+    }
+
+    function isValidContactMessage(data, messageId) {
+      return data.keys().hasAll([
+          'messageId', 'name', 'email', 'subject', 'message', 'userId', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'messageId', 'name', 'email', 'subject', 'message', 'userId', 'status', 'createdAt'
+        ])
+        && isValidId(data.messageId)
+        && data.messageId == messageId
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 150
+        && data.message is string && data.message.size() >= 5 && data.message.size() <= 2000
+        && data.userId is string && data.userId.size() <= 128
+        && data.status in ['new', 'reviewed']
+        && data.createdAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /users/{userId} (PII Isolated)
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && incoming().status == 'active'
+        && (incoming().role == 'user' || (incoming().role == 'admin' && isBootstrappedAdmin()));
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Tier 1: Admin management
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'role', 'plan', 'status', 'photoURL', 'updatedAt']))
+          ||
+          // Tier 2: Owner profile update (cannot alter role/plan/status or spoof email)
+          (isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().plan == existing().plan
+            && incoming().status == existing().status
+            && (incoming().email == existing().email || incoming().email == request.auth.token.email)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'email', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /admins/{userId}
+    // -------------------------------------------------------------------------
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        && isValidId(userId)
+        && isValidAdminRecord(incoming(), userId)
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /qrcodes/{qrId}
+    // -------------------------------------------------------------------------
+    match /qrcodes/{qrId} {
+      // Public single-document get enables dynamic QR resolution & Quick QR Edit metadata without leaking PII or secrets
+      allow get: if isValidQrId(qrId);
+
+      // Strict query enforcement: owners list only their own QRs; admins list all
+      allow list: if (isSignedIn() && resource.data.owner == request.auth.uid) || isAdmin();
+
+      allow create: if isVerifiedUser()
+        && isValidQrId(qrId)
+        && isValidQRCode(incoming(), qrId)
+        && incoming().owner == request.auth.uid
+        && incoming().scanCount == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidQrId(qrId)
+        && isValidQRCode(incoming(), qrId)
+        && incoming().qrId == existing().qrId
+        && incoming().owner == existing().owner
+        && incoming().originalLink == existing().originalLink
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Admin override (can edit any card link, number, status, styling)
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'shortSlug', 'currentLink', 'currentUrl', 'cardNumber', 'batchName',
+            'qrImage', 'qrType', 'status',
+            'customColor', 'bgColor', 'logo', 'expiryDate', 'updatedAt'
+          ]))
+          ||
+          // Action 2: Authenticated owner updates non-archived QR settings/destination
+          (isVerifiedUser()
+            && existing().owner == request.auth.uid
+            && existing().status != 'archived'
+            && incoming().scanCount == existing().scanCount
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'title', 'shortSlug', 'currentLink', 'currentUrl', 'cardNumber', 'batchName',
+              'qrImage', 'qrType', 'status',
+              'customColor', 'bgColor', 'logo', 'expiryDate', 'updatedAt'
+            ]))
+          ||
+          // Action 3: Atomic scan counter increment (+1 only on active QR)
+          (existing().status == 'active'
+            && incoming().scanCount == existing().scanCount + 1
+            && incoming().diff(existing()).affectedKeys().hasOnly(['scanCount', 'updatedAt']))
+          ||
+          // Action 4: Secure Edit Token atomic verification via write-only /qr_token_grants/{qrId}
+          (existing().status != 'archived'
+            && incoming().scanCount == existing().scanCount
+            && incoming().diff(existing()).affectedKeys().hasOnly(['currentLink', 'currentUrl', 'status', 'updatedAt'])
+            && exists(/databases/$(database)/documents/qr_edit_tokens/$(qrId))
+            && existsAfter(/databases/$(database)/documents/qr_token_grants/$(qrId))
+            && getAfter(/databases/$(database)/documents/qr_token_grants/$(qrId)).data.updatedAt == request.time
+            && getAfter(/databases/$(database)/documents/qr_token_grants/$(qrId)).data.submittedToken
+               == get(/databases/$(database)/documents/qr_edit_tokens/$(qrId)).data.token)
+        );
+
+      allow delete: if isValidQrId(qrId)
+        && ((isVerifiedUser() && existing().owner == request.auth.uid) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /qr_edit_tokens/{qrId} (Secret Token Store — Owner/Admin Only)
+    // -------------------------------------------------------------------------
+    match /qr_edit_tokens/{qrId} {
+      allow get: if isValidQrId(qrId)
+        && ((isSignedIn() && resource.data.owner == request.auth.uid) || isAdmin());
+
+      allow list: if (isSignedIn() && resource.data.owner == request.auth.uid) || isAdmin();
+
+      allow create: if isVerifiedUser()
+        && isValidQrId(qrId)
+        && isValidQREditToken(incoming(), qrId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().owner == request.auth.uid
+            && existsAfter(/databases/$(database)/documents/qrcodes/$(qrId))
+            && getAfter(/databases/$(database)/documents/qrcodes/$(qrId)).data.owner == request.auth.uid)
+          || isAdmin()
+        );
+
+      allow update: if isVerifiedUser()
+        && isValidQrId(qrId)
+        && isValidQREditToken(incoming(), qrId)
+        && incoming().qrId == existing().qrId
+        && incoming().owner == existing().owner
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['token', 'updatedAt'])
+        && (existing().owner == request.auth.uid || isAdmin());
+
+      allow delete: if isValidQrId(qrId)
+        && ((isVerifiedUser() && existing().owner == request.auth.uid) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /qr_token_grants/{qrId} (Write-Only Atomic Token Proof)
+    // -------------------------------------------------------------------------
+    match /qr_token_grants/{qrId} {
+      // Strictly unreadable by all clients so submitted tokens can never be leaked
+      allow read: if false;
+
+      allow create, update: if isValidQrId(qrId)
+        && isValidQRTokenGrant(incoming(), qrId)
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/qr_edit_tokens/$(qrId))
+        && incoming().submittedToken == get(/databases/$(database)/documents/qr_edit_tokens/$(qrId)).data.token;
+
+      allow delete: if isAdmin() && isValidId(qrId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /print_batches/{batchId}
+    // -------------------------------------------------------------------------
+    match /print_batches/{batchId} {
+      allow get: if isValidQrId(batchId)
+        && ((isSignedIn() && resource.data.owner == request.auth.uid) || isAdmin());
+
+      allow list: if (isSignedIn() && resource.data.owner == request.auth.uid) || isAdmin();
+
+      allow create: if isVerifiedUser()
+        && isValidQrId(batchId)
+        && isValidPrintBatch(incoming(), batchId)
+        && incoming().owner == request.auth.uid
+        && incoming().status == 'active'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidQrId(batchId)
+        && isValidPrintBatch(incoming(), batchId)
+        && incoming().batchId == existing().batchId
+        && incoming().owner == existing().owner
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Tier 1: Admin override
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'batchName', 'cardCount', 'paperSize', 'paperWidthMm', 'paperHeightMm',
+            'cardWidthMm', 'cardHeightMm', 'rows', 'cols', 'qrXPercent', 'qrYPercent',
+            'qrSizePercent', 'templateUrl', 'defaultUrl', 'qrColor', 'qrBgColor',
+            'status', 'updatedAt'
+          ]))
+          ||
+          // Tier 2: Owner updates non-archived batch metadata
+          (existing().owner == request.auth.uid
+            && existing().status != 'archived'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'batchName', 'cardCount', 'paperSize', 'paperWidthMm', 'paperHeightMm',
+              'cardWidthMm', 'cardHeightMm', 'rows', 'cols', 'qrXPercent', 'qrYPercent',
+              'qrSizePercent', 'templateUrl', 'defaultUrl', 'qrColor', 'qrBgColor',
+              'status', 'updatedAt'
+            ]))
+        );
+
+      allow delete: if isValidQrId(batchId)
+        && ((isVerifiedUser() && existing().owner == request.auth.uid) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /scans/{scanId}
+    // -------------------------------------------------------------------------
+    match /scans/{scanId} {
+      allow get: if isValidId(scanId)
+        && ((isSignedIn() && resource.data.qrOwner == request.auth.uid) || isAdmin());
+
+      allow list: if (isSignedIn() && resource.data.qrOwner == request.auth.uid) || isAdmin();
+
+      // Atomic creation bound to active parent QR and synchronous scanCount +1 increment
+      allow create: if isValidId(scanId)
+        && isValidScanEvent(incoming(), scanId)
+        && incoming().timestamp == request.time
+        && exists(/databases/$(database)/documents/qrcodes/$(incoming().qrId))
+        && get(/databases/$(database)/documents/qrcodes/$(incoming().qrId)).data.status == 'active'
+        && get(/databases/$(database)/documents/qrcodes/$(incoming().qrId)).data.owner == incoming().qrOwner
+        && getAfter(/databases/$(database)/documents/qrcodes/$(incoming().qrId)).data.scanCount
+           == get(/databases/$(database)/documents/qrcodes/$(incoming().qrId)).data.scanCount + 1;
+
+      allow update: if false;
+
+      allow delete: if isValidId(scanId)
+        && ((isVerifiedUser() && existing().qrOwner == request.auth.uid) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: /contact_messages/{messageId}
+    // -------------------------------------------------------------------------
+    match /contact_messages/{messageId} {
+      allow get: if isValidId(messageId) && isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isValidId(messageId)
+        && isValidContactMessage(incoming(), messageId)
+        && incoming().status == 'new'
+        && incoming().createdAt == request.time
+        && (
+          (!isSignedIn() && incoming().userId == '')
+          || (isSignedIn() && incoming().userId == request.auth.uid)
+        );
+
+      allow update: if isAdmin()
+        && isValidId(messageId)
+        && isValidContactMessage(incoming(), messageId)
+        && incoming().messageId == existing().messageId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+
+      allow delete: if isAdmin() && isValidId(messageId);
+    }
+  }
+}

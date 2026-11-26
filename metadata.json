@@ -1,0 +1,6 @@
+{
+  "name": "PulseQR — Dynamic QR Code & Scan Analytics SaaS",
+  "description": "Create unlimited dynamic QR codes across 18 formats, update destinations anytime, brand with custom colors and logos, and track real-time scan analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
